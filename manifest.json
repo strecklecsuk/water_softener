@@ -1,7 +1,7 @@
 {
   "domain": "water_softener",
   "name": "Water Softener Manager",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "documentation": "https://github.com/strecklecsuk/water_softener",
   "issue_tracker": "https://github.com/strecklecsuk/water_softener/issues",
   "codeowners": ["@strecklecsuk"],
