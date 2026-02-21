@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuraci\u00f3n del Descalcificador",
+        "data": {
+          "input_sensor": "Sensor de agua entrada (litros totales entrada)",
+          "output_sensor": "Sensor de agua salida (litros totales salida, opcional)",
+          "capacity": "Capacidad de la resina (L)",
+          "alarm": "Umbral de alarma de nivel bajo (L)",
+          "regen_minutes": "Tiempo de detecci\u00f3n de regeneraci\u00f3n (min)",
+          "notify_service": "Servicio de notificaci\u00f3n"
+        },
+        "data_description": {
+          "notify_service": "Selecciona un servicio de notificaci\u00f3n del desplegable o escribe uno manualmente (ej: notify.mobile_app_movil)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajustes del Descalcificador",
+        "description": "Deja un campo vac\u00edo para mantener el valor actual.",
+        "data": {
+          "set_remaining": "Ajuste manual: litros restantes hasta la regeneraci\u00f3n",
+          "capacity": "Capacidad de la resina (L)",
+          "alarm": "Umbral de alarma de nivel bajo (L)",
+          "regen_minutes": "Tiempo de detecci\u00f3n de regeneraci\u00f3n (min)",
+          "notify_service": "Servicio de notificaci\u00f3n"
+        },
+        "data_description": {
+          "set_remaining": "Usa este campo para corregir los litros restantes tras una regeneraci\u00f3n manual o un error de calibraci\u00f3n.",
+          "notify_service": "Selecciona del desplegable o escribe un servicio manualmente."
+        }
+      }
+    }
+  }
+}

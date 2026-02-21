@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Water Softener Setup",
+        "data": {
+          "input_sensor": "Input water sensor (total liters in)",
+          "output_sensor": "Output water sensor (total liters out, optional)",
+          "capacity": "Resin capacity (L)",
+          "alarm": "Low level alarm threshold (L)",
+          "regen_minutes": "Regeneration detection window (min)",
+          "notify_service": "Notification service"
+        },
+        "data_description": {
+          "notify_service": "Select a notify service from the list or type one manually (e.g. notify.mobile_app_phone)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Water Softener Settings",
+        "description": "Leave a field empty to keep its current value.",
+        "data": {
+          "set_remaining": "Manual adjustment: liters remaining until regeneration",
+          "capacity": "Resin capacity (L)",
+          "alarm": "Low level alarm threshold (L)",
+          "regen_minutes": "Regeneration detection window (min)",
+          "notify_service": "Notification service"
+        },
+        "data_description": {
+          "set_remaining": "Use this to correct the remaining liters after a manual regeneration or calibration error.",
+          "notify_service": "Select a notify service from the list or type one manually."
+        }
+      }
+    }
+  }
+}
