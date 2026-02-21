@@ -68,90 +68,124 @@ class WaterSoftenerCard extends HTMLElement {
     }
 
     // --- SVG del tanque ---
-    // viewBox: 0 0 185 265
-    // Tanque: x=10, y=22, w=130, h=200, rx=8
+    // viewBox: 0 0 185 265  — Tanque: x=10, y=22, w=130, h=200, rx=8
     const TX = 10, TY = 22, TW = 130, TH = 200;
-    const fillH = Math.max((pct / 100) * TH, 0);
-    const fillTop = TY + TH - fillH;
-    const waveY = fillTop;
+    const CX = TX + TW / 2;  // 75
 
-    // Nivel de texto: centrado en el tanque
-    const textY = TY + TH / 2 + 10;
-    const textColor = pct > 45 ? 'white' : waterColor;
+    // Geometría: tubo central de resina + zona sal en la base
+    const saltH   = 44;                   // zona sal: base ~22% del tanque
+    const saltY   = TY + TH - saltH;     // y=178 — inicio zona sal
+    const CTUBE_W = 36;                   // ancho del tubo central con resina
+    const CTUBE_X = CX - CTUBE_W / 2;   // x=57
 
-    // Ticks de medición (lado derecho del tanque)
-    const tickX1 = TX + TW + 2;
-    const tickX2 = TX + TW + 12;
-    const textX = TX + TW + 15;
-    const ticks = [
-      { pct: 0.25, label: '75%' },
-      { pct: 0.50, label: '50%' },
-      { pct: 0.75, label: '25%' },
-    ].map(t => {
-      const y = TY + t.pct * TH;
-      return `
-        <line x1="${tickX1}" y1="${y}" x2="${tickX2}" y2="${y}" stroke="${waterColor}99" stroke-width="1.5"/>
-        <text x="${textX}" y="${y + 4}" font-size="8.5" fill="${waterColor}bb" font-family="sans-serif">${t.label}</text>`;
-    }).join('');
+    // Porcentaje centrado en el tanque
+    const textY = TY + TH / 2 + 8;
 
-    // Camino de la ola
-    const waveAmp = Math.max(3, Math.min(10, pct / 8));
-    const makePath = (yOff, opac) => {
+    // Ola sutil en la superficie superior (tanque siempre lleno)
+    const waveAmp = 5;
+    const waveY   = TY + 12;
+    // La ola rellena hacia ARRIBA (V${TY}): crea el efecto de superficie
+    const makePath = (yOff) => {
       const y = waveY + yOff;
       const ya = y - waveAmp, yb = y + waveAmp;
-      return `M-200 ${y} Q-162 ${ya} -125 ${y} Q-87 ${yb} -50 ${y} Q-12 ${ya} 25 ${y} Q62 ${yb} 100 ${y} Q137 ${ya} 175 ${y} Q212 ${yb} 250 ${y} Q287 ${ya} 325 ${y} Q362 ${yb} 400 ${y} V${TY + TH} H-200 Z`;
+      return `M-200 ${y} Q-162 ${ya} -125 ${y} Q-87 ${yb} -50 ${y} Q-12 ${ya} 25 ${y} Q62 ${yb} 100 ${y} Q137 ${ya} 175 ${y} Q212 ${yb} 250 ${y} Q287 ${ya} 325 ${y} Q362 ${yb} 400 ${y} V${TY} H-200 Z`;
     };
+
+    // Bolitas de resina generadas inline con JS (sin <pattern> para evitar bugs de clip)
+    let resinDots = '';
+    const dotR = 2.0, dotSX = 7, dotSY = 7;
+    for (let row = 0, dy = TY + 6; dy < saltY - 4; dy += dotSY, row++) {
+      const xOff = (row % 2) * (dotSX / 2);
+      for (let dx = CTUBE_X + 4; dx < CTUBE_X + CTUBE_W - 3; dx += dotSX) {
+        const cx = dx + xOff;
+        if (cx > CTUBE_X + 2 && cx < CTUBE_X + CTUBE_W - 2) {
+          resinDots += `<circle cx="${cx.toFixed(1)}" cy="${dy}" r="${dotR}" fill="${waterLight}" fill-opacity="0.7"/>`;
+        }
+      }
+    }
+
+    // Bolas de sal generadas inline con JS (sin <pattern>)
+    const ballR = 9;
+    const saltRows = [
+      { y: saltY + saltH - ballR - 1,     xs: [19, 40, 61, 82, 103, 124], r: ballR },
+      { y: saltY + saltH - ballR * 2 - 4, xs: [30, 51, 72, 93, 114],      r: ballR },
+      { y: saltY + 7,                      xs: [44, 64, 84, 104],          r: 6 },
+    ];
+    let saltBalls = '';
+    saltRows.forEach(({ y, xs, r }) => {
+      xs.forEach(cx => {
+        saltBalls += `<circle cx="${cx}" cy="${y}" r="${r}" fill="white" fill-opacity="0.88" stroke="#ccc" stroke-width="0.5"/>`;
+      });
+    });
 
     const tankSVG = `
       <svg class="tank-svg" viewBox="0 0 185 265" xmlns="http://www.w3.org/2000/svg">
         <defs>
+          <!-- Clip al contorno del tanque — en el padre estático, nunca en el animado -->
           <clipPath id="${uid}-clip">
-            <rect x="${TX}" y="${fillTop}" width="${TW}" height="${fillH}"/>
+            <rect x="${TX}" y="${TY}" width="${TW}" height="${TH}" rx="8"/>
           </clipPath>
+          <!-- Gradiente de agua (color según estado de capacidad) -->
           <linearGradient id="${uid}-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="${waterLight}" stop-opacity="0.9"/>
+            <stop offset="0%" stop-color="${waterLight}" stop-opacity="0.95"/>
             <stop offset="100%" stop-color="${waterColor}"/>
-          </linearGradient>
-          <linearGradient id="${uid}-tank-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="${waterColor}" stop-opacity="0.06"/>
-            <stop offset="100%" stop-color="${waterColor}" stop-opacity="0.02"/>
           </linearGradient>
         </defs>
 
-        <!-- Tanque fondo -->
+        <!-- Fondo neutro -->
         <rect x="${TX}" y="${TY}" width="${TW}" height="${TH}" rx="8"
-              fill="url(#${uid}-tank-bg)" stroke="${waterColor}44" stroke-width="2"/>
+              fill="${waterColor}" fill-opacity="0.06" stroke="${waterColor}44" stroke-width="2"/>
 
-        <!-- Agua (relleno sólido bajo la ola) -->
-        <rect clip-path="url(#${uid}-clip)"
-              x="${TX}" y="${TY}" width="${TW}" height="${TH}" rx="8"
-              fill="url(#${uid}-grad)"/>
+        <!-- ░░ INTERIOR — todo recortado al contorno del tanque ░░ -->
+        <g clip-path="url(#${uid}-clip)">
 
-        <!-- Ola principal -->
-        <g clip-path="url(#${uid}-clip)" class="wave1">
-          <path d="${makePath(0, 0.9)}" fill="${waterColor}" opacity="0.9"/>
-        </g>
+          <!-- Fondo: agua llena todo el tanque -->
+          <rect x="${TX}" y="${TY}" width="${TW}" height="${TH}" fill="url(#${uid}-grad)"/>
 
-        <!-- Ola secundaria (profundidad) -->
-        <g clip-path="url(#${uid}-clip)" class="wave2">
-          <path d="${makePath(waveAmp * 0.6, 0.45)}" fill="${waterLight}" opacity="0.45"/>
+          <!-- Tubo central de resina: overlay oscuro sobre el agua -->
+          <rect x="${CTUBE_X}" y="${TY}" width="${CTUBE_W}" height="${TH}"
+                fill="rgba(0,0,0,0.22)"/>
+          <line x1="${CTUBE_X}"            y1="${TY}" x2="${CTUBE_X}"            y2="${TY + TH}"
+                stroke="white" stroke-width="0.8" stroke-opacity="0.3"/>
+          <line x1="${CTUBE_X + CTUBE_W}" y1="${TY}" x2="${CTUBE_X + CTUBE_W}" y2="${TY + TH}"
+                stroke="white" stroke-width="0.8" stroke-opacity="0.3"/>
+
+          <!-- Bolitas de resina (círculos inline) -->
+          ${resinDots}
+
+          <!-- Separador zona sal -->
+          <line x1="${TX}" y1="${saltY}" x2="${TX + TW}" y2="${saltY}"
+                stroke="white" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="4 3"/>
+
+          <!-- Fondo zona sal (ligeramente más oscuro) -->
+          <rect x="${TX}" y="${saltY}" width="${TW}" height="${saltH}"
+                fill="rgba(0,0,0,0.18)"/>
+
+          <!-- Bolas de sal blancas (círculos inline) -->
+          ${saltBalls}
+
+          <!-- Ola en la superficie superior (animada dentro del clip estático) -->
+          <g class="wave1">
+            <path d="${makePath(0)}" fill="${waterColor}" opacity="0.65"/>
+          </g>
+          <g class="wave2">
+            <path d="${makePath(waveAmp * 0.6)}" fill="${waterLight}" opacity="0.35"/>
+          </g>
+
         </g>
 
         <!-- Porcentaje centrado -->
-        <text x="${TX + TW / 2}" y="${textY}"
+        <text x="${CX}" y="${textY}"
               text-anchor="middle" dominant-baseline="middle"
-              font-size="30" font-weight="700" fill="${textColor}"
+              font-size="28" font-weight="700" fill="white"
               font-family="var(--paper-font-headline_-_font-family,Roboto,sans-serif)"
-              style="text-shadow:0 1px 4px rgba(0,0,0,0.3)">
+              style="text-shadow:0 1px 6px rgba(0,0,0,0.55)">
           ${Math.round(pct)}%
         </text>
 
-        <!-- Contorno del tanque (encima) -->
+        <!-- Contorno del tanque (encima de todo) -->
         <rect x="${TX}" y="${TY}" width="${TW}" height="${TH}" rx="8"
               fill="none" stroke="${waterColor}" stroke-width="2.5"/>
-
-        <!-- Ticks de medición -->
-        ${ticks}
 
         <!-- Tapa superior -->
         <rect x="${TX + 10}" y="${TY - 14}" width="${TW - 20}" height="15" rx="4"
@@ -164,13 +198,12 @@ class WaterSoftenerCard extends HTMLElement {
               fill="${waterColor}" opacity="0.5"/>
         <rect x="${TX + 45}" y="${TY + TH + 8}" width="${TW - 90}" height="14" rx="3"
               fill="${waterColor}" opacity="0.35"/>
-        <!-- Pies -->
         <rect x="${TX + 18}" y="${TY + TH + 20}" width="18" height="22" rx="3"
               fill="${waterColor}" opacity="0.3"/>
         <rect x="${TX + TW - 36}" y="${TY + TH + 20}" width="18" height="22" rx="3"
               fill="${waterColor}" opacity="0.3"/>
 
-        <!-- Válvula lateral (detalle decorativo) -->
+        <!-- Válvula lateral -->
         <circle cx="${TX - 8}" cy="${TY + TH * 0.65}" r="5"
                 fill="${waterColor}" opacity="0.6" stroke="white" stroke-width="1"/>
         <line x1="${TX - 8}" y1="${TY + TH * 0.65 - 5}"
@@ -183,9 +216,9 @@ class WaterSoftenerCard extends HTMLElement {
     if (isRegen) {
       statusChip = `<span class="chip chip-regen">Regenerando</span>`;
     } else if (pct < 10) {
-      statusChip = `<span class="chip chip-crit">Nivel cr&iacute;tico</span>`;
+      statusChip = `<span class="chip chip-crit">Regeneraci&oacute;n en Breve</span>`;
     } else if (pct < 25) {
-      statusChip = `<span class="chip chip-warn">Nivel bajo</span>`;
+      statusChip = `<span class="chip chip-warn">Regeneraci&oacute;n Pr&oacute;xima</span>`;
     }
 
     // --- Bloque de próxima regeneración ---
@@ -213,13 +246,13 @@ class WaterSoftenerCard extends HTMLElement {
       }
       let regenMsg, regenClass;
       if (days <= 0) {
-        regenMsg = 'Regeneraci&oacute;n necesaria ahora';
+        regenMsg = 'Regeneraci&oacute;n en Breve';
         regenClass = 'regen-urgent';
       } else if (daysRound === 1) {
-        regenMsg = 'Pr&oacute;xima regeneraci&oacute;n: <strong>ma&ntilde;ana</strong>';
+        regenMsg = 'Regeneraci&oacute;n Pr&oacute;xima: <strong>ma&ntilde;ana</strong>';
         regenClass = 'regen-soon';
       } else {
-        regenMsg = `Pr&oacute;xima regeneraci&oacute;n: <strong>en ${daysRound} d&iacute;as</strong>`;
+        regenMsg = `Regeneraci&oacute;n Pr&oacute;xima: <strong>en ${daysRound} d&iacute;as</strong>`;
         regenClass = daysRound <= 3 ? 'regen-soon' : '';
       }
       regenBlock = `
@@ -464,6 +497,6 @@ if (!window.customCards.find(c => c.type === 'water-softener-card')) {
     name: 'Water Softener Card',
     description: 'Tarjeta visual para el Descalcificador: tanque animado, consumo histórico y estimación de regeneración.',
     preview: true,
-    documentationURL: 'https://github.com/TU_USUARIO/water_softener',
+    documentationURL: 'https://github.com/strecklecsuk/water_softener',
   });
 }

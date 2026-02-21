@@ -11,11 +11,13 @@ from .const import (
     CONF_CAPACITY,
     CONF_INPUT_SENSOR,
     CONF_NOTIFY,
+    CONF_NOTIFY_MSG,
     CONF_OUTPUT_SENSOR,
     CONF_REGEN_MINUTES,
     CONF_SET_REMAINING,
     DEFAULT_ALARM,
     DEFAULT_CAPACITY,
+    DEFAULT_NOTIFY_MSG,
     DEFAULT_REGEN_MINUTES,
     DOMAIN,
     STORAGE_KEY,
@@ -33,6 +35,7 @@ class WaterSoftenerCoordinator(DataUpdateCoordinator):
         self._store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}_{entry.entry_id}")
         self._regen_unsub = None
         self._last_input_time = None
+        self._regen_started_at = None
 
         self._load_config()
 
@@ -58,6 +61,7 @@ class WaterSoftenerCoordinator(DataUpdateCoordinator):
         self.capacity = opts.get(CONF_CAPACITY, data.get(CONF_CAPACITY, DEFAULT_CAPACITY))
         self.alarm = opts.get(CONF_ALARM, data.get(CONF_ALARM, DEFAULT_ALARM))
         self.notify_service = opts.get(CONF_NOTIFY, data.get(CONF_NOTIFY))
+        self.notify_message = opts.get(CONF_NOTIFY_MSG, data.get(CONF_NOTIFY_MSG, DEFAULT_NOTIFY_MSG)) or DEFAULT_NOTIFY_MSG
         self.regen_minutes = opts.get(
             CONF_REGEN_MINUTES, data.get(CONF_REGEN_MINUTES, DEFAULT_REGEN_MINUTES)
         )
@@ -236,6 +240,7 @@ class WaterSoftenerCoordinator(DataUpdateCoordinator):
     def _start_regen_timer(self):
         if self._regen_unsub is not None:
             return
+        self._regen_started_at = dt_util.utcnow()
         _LOGGER.debug(
             "Regen detection started: %.0f L remaining, waiting %s min with no output.",
             self.remaining,
@@ -254,11 +259,16 @@ class WaterSoftenerCoordinator(DataUpdateCoordinator):
     def _regen_timeout(self, _now):
         self._regen_unsub = None
 
-        if self._last_input_time is None:
+        if self._last_input_time is None or self._regen_started_at is None:
             return
-        elapsed = (dt_util.utcnow() - self._last_input_time).total_seconds()
-        if elapsed > self.regen_minutes * 60 * 2:
-            _LOGGER.debug("Regen timer fired but no recent input — ignoring.")
+
+        # Require input to have occurred AFTER the timer started.
+        # A single trigger event (that started the timer) is not enough;
+        # input must be ongoing during the monitoring window.
+        if self._last_input_time <= self._regen_started_at:
+            _LOGGER.debug(
+                "Regen timer fired but no input detected during monitoring window — ignoring."
+            )
             return
 
         if self.remaining < self.alarm and not self.regenerating:
@@ -278,16 +288,19 @@ class WaterSoftenerCoordinator(DataUpdateCoordinator):
         ):
             self._alarm_notified = True
             svc = self.notify_service.removeprefix("notify.")
+            try:
+                msg = self.notify_message.format(
+                    remaining=self.remaining,
+                    capacity=self.capacity,
+                    alarm=self.alarm,
+                )
+            except (KeyError, ValueError):
+                msg = self.notify_message
             self.hass.async_create_task(
                 self.hass.services.async_call(
                     "notify",
                     svc,
-                    {
-                        "message": (
-                            f"Descalcificador bajo: {self.remaining:.0f} L restantes. "
-                            "Pendiente de regeneracion."
-                        )
-                    },
+                    {"message": msg},
                 )
             )
 

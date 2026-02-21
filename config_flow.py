@@ -8,11 +8,13 @@ from .const import (
     CONF_CAPACITY,
     CONF_INPUT_SENSOR,
     CONF_NOTIFY,
+    CONF_NOTIFY_MSG,
     CONF_OUTPUT_SENSOR,
     CONF_REGEN_MINUTES,
     CONF_SET_REMAINING,
     DEFAULT_ALARM,
     DEFAULT_CAPACITY,
+    DEFAULT_NOTIFY_MSG,
     DEFAULT_REGEN_MINUTES,
     DOMAIN,
 )
@@ -71,6 +73,9 @@ class WaterSoftenerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
+                vol.Optional(CONF_NOTIFY_MSG, default=DEFAULT_NOTIFY_MSG): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=False)
+                ),
             }
         )
 
@@ -115,6 +120,11 @@ class WaterSoftenerOptionsFlow(config_entries.OptionsFlow):
             if coordinator
             else self.config_entry.data.get(CONF_NOTIFY, "")
         ) or ""
+        current_notify_msg = (
+            coordinator.notify_message
+            if coordinator
+            else self.config_entry.data.get(CONF_NOTIFY_MSG, DEFAULT_NOTIFY_MSG)
+        ) or DEFAULT_NOTIFY_MSG
 
         notify_opts = _notify_options(self.hass)
 
@@ -161,6 +171,12 @@ class WaterSoftenerOptionsFlow(config_entries.OptionsFlow):
                         custom_value=True,
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
+                ),
+                vol.Optional(
+                    CONF_NOTIFY_MSG,
+                    description={"suggested_value": current_notify_msg},
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=False)
                 ),
             }
         )
