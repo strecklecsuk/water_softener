@@ -23,12 +23,14 @@ jobs:
           rsync -a --exclude='.git' --exclude='custom_components' \
             . /tmp/ws/custom_components/water_softener/
 
-      - name: Install hassfest from HA core
+      - name: Clone HA core
+        run: git clone --depth 1 https://github.com/home-assistant/core.git /tmp/hacore
+
+      - name: Install hassfest dependencies
         run: |
-          pip install --quiet uv
-          git clone --depth 1 https://github.com/home-assistant/core.git /tmp/hacore
           cd /tmp/hacore
-          uv pip install --quiet --system -r requirements_hassfest.txt
+          pip install --quiet voluptuous colorlog annotated-types
+          pip install --quiet homeassistant || true
 
       - name: Run hassfest
         run: |
