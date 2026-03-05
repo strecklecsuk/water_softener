@@ -4,6 +4,7 @@
       "user": {
         "title": "Water Softener Setup",
         "data": {
+          "name": "Device name",
           "input_sensor": "Input water sensor (total liters in)",
           "output_sensor": "Output water sensor (total liters out, optional)",
           "capacity": "Resin capacity (L)",

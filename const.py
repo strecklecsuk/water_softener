@@ -1,5 +1,6 @@
 DOMAIN = "water_softener"
 
+CONF_NAME = "name"
 CONF_INPUT_SENSOR = "input_sensor"
 CONF_OUTPUT_SENSOR = "output_sensor"
 CONF_CAPACITY = "capacity"

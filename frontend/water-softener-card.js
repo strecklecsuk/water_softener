@@ -1,5 +1,5 @@
 /**
- * water-softener-card  v1.1
+ * water-softener-card  v1.2
  * Custom Lovelace card for the Water Softener Manager integration.
  * Instala el recurso desde: Ajustes → Paneles → Recursos → /water_softener/water-softener-card.js
  */
@@ -13,6 +13,10 @@ class WaterSoftenerCard extends HTMLElement {
 
   static getStubConfig() {
     return { entity: 'sensor.softener_remaining' };
+  }
+
+  static getConfigElement() {
+    return document.createElement('water-softener-card-editor');
   }
 
   setConfig(config) {
@@ -46,6 +50,9 @@ class WaterSoftenerCard extends HTMLElement {
     const capacity = attrs.capacity_L || 4500;
     const pct = Math.min(Math.max((remaining / capacity) * 100, 0), 100);
     const isRegen = attrs.regenerating === true;
+    const manualPending = attrs.manual_completion_pending === true;
+    const entryId = attrs.entry_id || '';
+    this._entryId = entryId;
     const avgDaily = attrs.avg_daily_consumption_L;
     const daysUntil = attrs.days_until_regen;
     const nextRegenDate = attrs.next_regen_estimate;
@@ -409,6 +416,29 @@ class WaterSoftenerCard extends HTMLElement {
           margin-top: 2px;
         }
 
+        /* Botón completado manual (sensor único) */
+        .btn-complete {
+          display: block;
+          width: calc(100% - 32px);
+          margin: 10px 16px 4px;
+          padding: 12px;
+          background: #1e88e5;
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          text-transform: uppercase;
+          animation: pulse-btn 1.8s ease-in-out infinite;
+        }
+        .btn-complete:hover { background: #1565c0; }
+        @keyframes pulse-btn {
+          0%,100% { box-shadow: 0 0 0 0 rgba(30,136,229,0.5); }
+          50%      { box-shadow: 0 0 0 8px rgba(30,136,229,0); }
+        }
+
         /* Fila de estadísticas inferiores */
         .stats-bottom {
           display: flex;
@@ -469,6 +499,9 @@ class WaterSoftenerCard extends HTMLElement {
         <!-- Estimación próxima regeneración -->
         ${regenBlock}
 
+        <!-- Botón completado manual (solo sensor único, cuando pending) -->
+        ${manualPending ? `<button class="btn-complete" id="${uid}-btn-complete">&#9989; Regeneración Completada</button>` : ''}
+
         <!-- Stats inferiores -->
         <div class="stats-bottom">
           ${avgDaily != null ? `
@@ -483,12 +516,161 @@ class WaterSoftenerCard extends HTMLElement {
           </div>` : ''}
         </div>
       </ha-card>`;
+    if (manualPending) this._bindEvents();
+  }
+
+  _bindEvents() {
+    const btn = this.shadowRoot.getElementById(`${this._uid}-btn-complete`);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      if (!confirm('¿Confirmas que la regeneración ha finalizado?\nEsto restablecerá la capacidad del descalcificador.')) return;
+      this._hass.callService('water_softener', 'complete_regeneration', { entry_id: this._entryId });
+    });
   }
 
   getCardSize() { return 5; }
 }
 
 customElements.define('water-softener-card', WaterSoftenerCard);
+
+// ─── Editor visual ────────────────────────────────────────────────────────────
+class WaterSoftenerCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _wsEntities() {
+    if (!this._hass) return [];
+    return Object.entries(this._hass.states)
+      .filter(([id, st]) =>
+        id.startsWith('sensor.') &&
+        st.attributes.capacity_L !== undefined &&
+        st.attributes.entry_id !== undefined
+      )
+      .map(([id, st]) => ({
+        value: id,
+        label: st.attributes.friendly_name || id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  _render() {
+    if (!this._config) return;
+
+    const entities = this._wsEntities();
+
+    if (entities.length === 0) {
+      this.shadowRoot.innerHTML = `
+        <style>
+          .notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin: 8px 0;
+            padding: 14px 16px;
+            background: rgba(255,152,0,0.10);
+            border: 1px solid #fb8c00;
+            border-radius: 10px;
+            color: var(--primary-text-color);
+            font-size: 13.5px;
+            line-height: 1.5;
+          }
+          .notice-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+        </style>
+        <div class="notice">
+          <span class="notice-icon">⚠️</span>
+          <span>No se encontró ningún descalcificador configurado.<br>
+          Ve a <strong>Ajustes → Integraciones → Water Softener</strong>
+          y crea al menos un dispositivo antes de añadir esta tarjeta.</span>
+        </div>
+      `;
+      return;
+    }
+
+    const opts = entities.map(e =>
+      `<option value="${e.value}" ${e.value === (this._config.entity || '') ? 'selected' : ''}>${e.label}</option>`
+    ).join('');
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        .form { display: flex; flex-direction: column; gap: 16px; padding: 16px 0; }
+        .field { display: flex; flex-direction: column; gap: 4px; }
+        label {
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--secondary-text-color);
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+        select, input {
+          width: 100%;
+          box-sizing: border-box;
+          height: 48px;
+          padding: 0 12px;
+          border: 1px solid var(--divider-color, #e0e0e0);
+          border-radius: 6px;
+          background: var(--card-background-color, white);
+          color: var(--primary-text-color);
+          font-size: 14px;
+          font-family: inherit;
+          outline: none;
+          cursor: pointer;
+          appearance: auto;
+        }
+        select:focus, input:focus {
+          border-color: var(--primary-color, #03a9f4);
+        }
+        input { cursor: text; }
+      </style>
+      <div class="form">
+        <div class="field">
+          <label>Descalcificador</label>
+          <select id="entity-select">${opts}</select>
+        </div>
+        <div class="field">
+          <label>Título de la tarjeta (opcional)</label>
+          <input id="title-input" type="text" placeholder="Descalcificador"
+                 value="${(this._config.title || '').replace(/"/g, '&quot;')}">
+        </div>
+      </div>
+    `;
+
+    this.shadowRoot.getElementById('entity-select').addEventListener('change', (ev) => {
+      this._config = { ...this._config, entity: ev.target.value };
+      this._fireChanged();
+    });
+
+    this.shadowRoot.getElementById('title-input').addEventListener('change', (ev) => {
+      const val = ev.target.value.trim();
+      const cfg = { ...this._config };
+      if (val) cfg.title = val;
+      else delete cfg.title;
+      this._config = cfg;
+      this._fireChanged();
+    });
+  }
+
+  _fireChanged() {
+    this.dispatchEvent(new CustomEvent('config-changed', {
+      detail: { config: this._config },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+}
+
+customElements.define('water-softener-card-editor', WaterSoftenerCardEditor);
 
 window.customCards = window.customCards || [];
 if (!window.customCards.find(c => c.type === 'water-softener-card')) {

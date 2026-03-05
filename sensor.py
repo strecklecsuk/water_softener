@@ -6,6 +6,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfVolume
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
@@ -25,8 +26,13 @@ class SoftenerRemaining(CoordinatorEntity, SensorEntity):
 
     def __init__(self, coordinator, entry):
         super().__init__(coordinator)
-        self._attr_name = "Softener Remaining"
+        entry_name = entry.data.get("name") or entry.title or "Water Softener"
+        self._attr_name = f"{entry_name} Remaining"
         self._attr_unique_id = f"{entry.entry_id}_remaining"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=entry_name,
+        )
 
     @property
     def icon(self):
@@ -52,6 +58,8 @@ class SoftenerRemaining(CoordinatorEntity, SensorEntity):
             "alarm_threshold_L": c.alarm,
             "remaining_pct": pct,
             "regenerating": c.regenerating,
+            "manual_completion_pending": c.manual_completion_pending,
+            "entry_id": c.entry.entry_id,
         }
 
         if c.last_regen_date:

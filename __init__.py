@@ -14,7 +14,8 @@ PLATFORMS = ["sensor", "binary_sensor"]
 _CARD_PATH = os.path.join(os.path.dirname(__file__), "frontend", "water-softener-card.js")
 _WWW_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "www", "water-softener-card.js")
 
-_CARD_URL = "/local/water-softener-card.js"
+_CARD_VERSION = "1.2"
+_CARD_URL = f"/local/water-softener-card.js?v={_CARD_VERSION}"
 _CARD_URL_LEGACY = "/water_softener/water-softener-card.js"
 
 _card_static_registered = False
@@ -43,10 +44,10 @@ def _register_static_path(hass: HomeAssistant) -> None:
 
 
 async def _ensure_lovelace_resource(hass: HomeAssistant) -> None:
-    """Migrate or register the Lovelace resource to /local/water-softener-card.js.
+    """Register the versioned Lovelace resource URL, removing any older versions.
 
-    Writes to storage so it takes effect on the next HA startup.
-    Existing users with the old URL (/water_softener/...) are migrated automatically.
+    Using a versioned URL (?v=X.Y) forces browsers to reload the JS whenever
+    the version is bumped, avoiding stale-cache issues.
     """
     store = Store(hass, 1, "lovelace_resources")
     data = await store.async_load()
@@ -55,12 +56,15 @@ async def _ensure_lovelace_resource(hass: HomeAssistant) -> None:
 
     items = data.get("items", [])
 
-    # Already registered with the correct URL → nothing to do
+    # Already registered with the exact current versioned URL → nothing to do
     if any(item.get("url") == _CARD_URL for item in items):
         return
 
-    # Remove old/legacy entry if present, then add the correct one
-    new_items = [item for item in items if item.get("url") != _CARD_URL_LEGACY]
+    # Remove ALL previous water-softener-card entries (legacy URL and old versions)
+    new_items = [
+        item for item in items
+        if "water-softener-card" not in item.get("url", "")
+    ]
     new_items.append({"id": uuid.uuid4().hex, "url": _CARD_URL, "type": "module"})
     data["items"] = new_items
     await store.async_save(data)
@@ -85,6 +89,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(coordinator.async_update_options))
+
+    # Register manual completion service (single-sensor mode)
+    async def handle_complete_regeneration(call):
+        entry_id = call.data.get("entry_id")
+        coord = hass.data.get(DOMAIN, {}).get(entry_id)
+        if coord:
+            coord.manual_complete_regeneration()
+
+    hass.services.async_register(
+        DOMAIN,
+        "complete_regeneration",
+        handle_complete_regeneration,
+    )
 
     return True
 

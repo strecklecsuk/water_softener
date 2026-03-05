@@ -7,6 +7,7 @@ from .const import (
     CONF_ALARM,
     CONF_CAPACITY,
     CONF_INPUT_SENSOR,
+    CONF_NAME,
     CONF_NOTIFY,
     CONF_NOTIFY_MSG,
     CONF_OUTPUT_SENSOR,
@@ -39,12 +40,16 @@ class WaterSoftenerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            return self.async_create_entry(title="Water Softener", data=user_input)
+            title = user_input.get(CONF_NAME) or "Water Softener"
+            return self.async_create_entry(title=title, data=user_input)
 
         notify_opts = _notify_options(self.hass)
 
         schema = vol.Schema(
             {
+                vol.Required(CONF_NAME, default="Water Softener"): selector.TextSelector(
+                    selector.TextSelectorConfig(multiline=False)
+                ),
                 vol.Required(CONF_INPUT_SENSOR): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),

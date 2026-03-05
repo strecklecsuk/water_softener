@@ -4,6 +4,7 @@
       "user": {
         "title": "Configuraci\u00f3n del Descalcificador",
         "data": {
+          "name": "Nombre del descalcificador",
           "input_sensor": "Sensor de agua entrada (litros totales entrada)",
           "output_sensor": "Sensor de agua salida (litros totales salida, opcional)",
           "capacity": "Capacidad de la resina (L)",
