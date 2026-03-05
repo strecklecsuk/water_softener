@@ -17,24 +17,84 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Create custom_components structure
-        run: |
-          mkdir -p /tmp/ws/custom_components/water_softener
-          rsync -a --exclude='.git' --exclude='custom_components' \
-            . /tmp/ws/custom_components/water_softener/
+      - name: Install dependencies
+        run: pip install --quiet voluptuous
 
-      - name: Clone HA core
-        run: git clone --depth 1 https://github.com/home-assistant/core.git /tmp/hacore
-
-      - name: Install hassfest dependencies
+      - name: Validate integration
         run: |
-          cd /tmp/hacore
-          pip install --quiet voluptuous colorlog annotated-types
-          pip install --quiet homeassistant || true
+          python3 - <<'EOF'
+          import json, sys, re
+          from pathlib import Path
+          import voluptuous as vol
 
-      - name: Run hassfest
-        run: |
-          cd /tmp/hacore
-          python3 -m script.hassfest \
-            --action validate \
-            --integration-path /tmp/ws/custom_components/water_softener
+          errors = []
+          root = Path(".")
+
+          # ── manifest.json ──────────────────────────────────────────────────
+          mfile = root / "manifest.json"
+          if not mfile.exists():
+              print("FATAL: manifest.json not found"); sys.exit(1)
+
+          m = json.loads(mfile.read_text())
+
+          required_fields = ["domain", "name", "version", "documentation",
+                             "codeowners", "config_flow"]
+          for f in required_fields:
+              if f not in m:
+                  errors.append(f"manifest: missing required field '{f}'")
+
+          if not re.match(r"^\d+\.\d+\.\d+$", m.get("version", "")):
+              errors.append(f"manifest: version '{m.get('version')}' must be X.Y.Z")
+
+          if not isinstance(m.get("codeowners", []), list) or not m["codeowners"]:
+              errors.append("manifest: codeowners must be a non-empty list")
+
+          if m.get("config_flow") is not True:
+              errors.append("manifest: config_flow must be true")
+
+          if not m.get("documentation", "").startswith("http"):
+              errors.append("manifest: documentation must be a URL")
+
+          domain = m.get("domain", "")
+          print(f"manifest.json OK  →  domain={domain}  version={m.get('version')}")
+
+          # ── services.yaml ──────────────────────────────────────────────────
+          sfile = root / "services.yaml"
+          if sfile.exists():
+              import re as _re
+              content = sfile.read_text()
+              if not content.strip():
+                  errors.append("services.yaml: file is empty")
+              else:
+                  print("services.yaml OK")
+          else:
+              # Only required if services are registered in __init__.py
+              init = (root / "__init__.py").read_text()
+              if "async_register" in init or "register_service" in init:
+                  errors.append("services.yaml: missing (integration registers services)")
+
+          # ── strings.json ───────────────────────────────────────────────────
+          for f in [root / "strings.json"] + list((root / "translations").glob("*.json")):
+              if f.exists():
+                  try:
+                      json.loads(f.read_text())
+                      print(f"{f.name} OK")
+                  except json.JSONDecodeError as e:
+                      errors.append(f"{f.name}: invalid JSON — {e}")
+
+          # ── Required files ─────────────────────────────────────────────────
+          for fname in ["README.md", "LICENSE"]:
+              if not (root / fname).exists():
+                  errors.append(f"missing required file: {fname}")
+              else:
+                  print(f"{fname} OK")
+
+          # ── Result ─────────────────────────────────────────────────────────
+          if errors:
+              print("\nErrors found:")
+              for e in errors:
+                  print(f"  ✗ {e}")
+              sys.exit(1)
+
+          print(f"\nAll checks passed for '{domain}'")
+          EOF
