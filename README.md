@@ -2,7 +2,9 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg)](https://www.home-assistant.io/)
-[![Version](https://img.shields.io/badge/version-1.2.0-green.svg)](https://github.com/strecklecsuk/water_softener/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/strecklecsuk/water_softener/releases)
+[![Validate with HACS](https://github.com/strecklecsuk/water_softener/actions/workflows/validate.yml/badge.svg)](https://github.com/strecklecsuk/water_softener/actions/workflows/validate.yml)
+[![Validate with hassfest](https://github.com/strecklecsuk/water_softener/actions/workflows/hassfest.yml/badge.svg)](https://github.com/strecklecsuk/water_softener/actions/workflows/hassfest.yml)
 
 Custom Home Assistant integration to monitor and manage a water softener (descalcificador). Tracks resin ion-exchange capacity, detects regeneration cycles automatically, estimates the next regeneration date, logs daily consumption history, and sends configurable low-level notifications.
 
@@ -23,11 +25,13 @@ Custom Home Assistant integration to monitor and manage a water softener (descal
 
 ## Sensors
 
+Each configured device creates its own sensor named after the device name set during setup (e.g. `sensor.my_softener_remaining`).
+
 | Entity | Description |
 |---|---|
-| `sensor.softener_remaining` | Liters of ion-exchange capacity remaining |
+| `sensor.<name>_remaining` | Liters of ion-exchange capacity remaining |
 
-**Attributes on `sensor.softener_remaining`:**
+**Attributes:**
 
 | Attribute | Description |
 |---|---|
@@ -44,7 +48,7 @@ Custom Home Assistant integration to monitor and manage a water softener (descal
 
 | Entity | Description |
 |---|---|
-| `binary_sensor.softener_regenerating` | `on` while regeneration is in progress |
+| `binary_sensor.<name>_regenerating` | `on` while regeneration is in progress |
 
 ---
 
@@ -70,6 +74,7 @@ Go to **Settings → Devices & Services → Add Integration → Water Softener M
 
 | Parameter | Description | Default |
 |---|---|---|
+| Device name | Unique name for this softener | required |
 | Input sensor | Water meter sensor (total liters IN) | required |
 | Output sensor | Water meter sensor (total liters OUT) | optional |
 | Resin capacity | Total resin capacity in liters | 4500 |
@@ -115,10 +120,12 @@ The card JS is registered automatically when the integration loads. No manual re
 
 ### Usage
 
+The card includes a **visual editor** — no YAML needed. It auto-detects all configured water softener devices.
+
 ```yaml
 type: custom:water-softener-card
-entity: sensor.softener_remaining
-title: Descalcificador
+entity: sensor.<name>_remaining
+title: My Softener   # optional
 ```
 
 ### Card features
@@ -145,6 +152,14 @@ title: Descalcificador
 ---
 
 ## Changelog
+
+### v1.3.0
+- **New:** Multi-device support — each integration entry gets a unique name, creating separate entities and devices with no collisions
+- **New:** Visual card editor with auto-detection of water softener entities
+- **New:** Versioned Lovelace resource URL for automatic browser cache-busting
+- **Fix:** Binary sensor name was hardcoded; now uses device name
+- **Fix:** `DeviceInfo` added to group entities per device in the HA registry
+- **CI:** GitHub Actions workflows for HACS validation and hassfest
 
 ### v1.2.0
 - **Fix:** Timer-based regeneration detection now requires ongoing input flow during the full monitoring window — a single brief water event can no longer trigger a false regeneration
