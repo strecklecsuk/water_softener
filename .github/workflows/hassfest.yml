@@ -11,4 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Create custom_components structure for hassfest
+        run: |
+          mkdir -p custom_components
+          ln -s ${{ github.workspace }} custom_components/water_softener
       - uses: home-assistant/actions/hassfest@master
