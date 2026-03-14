@@ -6,12 +6,18 @@
 [![Validate with HACS](https://github.com/strecklecsuk/water_softener/actions/workflows/validate.yml/badge.svg)](https://github.com/strecklecsuk/water_softener/actions/workflows/validate.yml)
 [![Validate with hassfest](https://github.com/strecklecsuk/water_softener/actions/workflows/hassfest.yml/badge.svg)](https://github.com/strecklecsuk/water_softener/actions/workflows/hassfest.yml)
 
-Custom Home Assistant integration to monitor and manage a water softener (descalcificador). Tracks resin ion-exchange capacity, detects regeneration cycles automatically, estimates the next regeneration date, logs daily consumption history, and sends configurable low-level notifications.
+Custom Home Assistant integration to monitor and manage any water softener. Works with **any water meter or flow sensor** that exposes a cumulative volume reading in liters — no specific hardware or manufacturer required. If your sensor counts liters, this integration works with it.
+
+It tracks resin ion-exchange capacity, detects regeneration cycles automatically, estimates the next regeneration date, logs daily consumption history, and sends configurable low-level notifications.
+
+> **Hardware-agnostic** — compatible with pulse counters, smart meters, Zigbee/Z-Wave sensors, ESPHome-based devices, or any other sensor integrated into Home Assistant that reports total water volume in liters.
 
 ---
 
 ## Features
 
+- Works with **any volumetric sensor** available in Home Assistant (cumulative liters)
+- Supports **single-sensor mode** (input only) and **dual-sensor mode** (input + output)
 - Tracks remaining resin ion-exchange capacity in liters
 - Detects regeneration automatically via input/output water sensors
   - Primary path: remaining reaches 0 → immediate detection
@@ -19,6 +25,7 @@ Custom Home Assistant integration to monitor and manage a water softener (descal
 - Estimates days until next regeneration based on 7-day consumption average
 - Sends a configurable notification when level drops below the alarm threshold
 - Manual calibration of remaining liters via Options flow
+- Supports **multiple softeners** — add one entry per device, each fully independent
 - Custom Lovelace card with animated SVG tank showing resin, salt and water zones
 
 ---
@@ -72,11 +79,13 @@ Each configured device creates its own sensor named after the device name set du
 
 Go to **Settings → Devices & Services → Add Integration → Water Softener Manager**
 
+Any Home Assistant sensor that provides a **cumulative total volume in liters** can be used — pulse counters, smart meters, ESPHome devices, Zigbee/Z-Wave sensors, or any other integration. The sensor just needs to report a running total that increases over time.
+
 | Parameter | Description | Default |
 |---|---|---|
 | Device name | Unique name for this softener | required |
-| Input sensor | Water meter sensor (total liters IN) | required |
-| Output sensor | Water meter sensor (total liters OUT) | optional |
+| Input sensor | Any HA sensor reporting total liters consumed (cumulative, ever-increasing) | required |
+| Output sensor | Any HA sensor reporting total liters out — enables automatic regeneration detection (optional) | optional |
 | Resin capacity | Total resin capacity in liters | 4500 |
 | Alarm threshold | Low level alert in liters | 200 |
 | Regen detection window | Minutes of input without output to confirm regeneration | 5 |
